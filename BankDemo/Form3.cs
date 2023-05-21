@@ -34,8 +34,9 @@ namespace BankDemo
             connObj = new SqlConnection(@"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=C:\repos\Teaching\C#\Winter2023\BankDemo\BankDemo\Bank.mdf;Integrated Security=True");
             InitializeComponent();
         }
-        private bool Find_Data(string sql = "SELECT * From Accounts")
+        private bool FindData(string sql = "SELECT * From Accounts")
         {
+            
             SqlDataReader reader;
             SqlCommand command = new SqlCommand(sql, connObj);
             reader = command.ExecuteReader();
@@ -81,7 +82,7 @@ namespace BankDemo
 
         private void Chequing_Click(object sender, EventArgs e)
         {
-            if (!Find_Data($"SELECT * from Accounts WHERE CustomerID = {clientNumber}"))
+            if (!FindData($"SELECT * from Accounts WHERE CustomerID = {clientNumber}"))
             {
                 return;
             }
@@ -93,7 +94,7 @@ namespace BankDemo
 
         private void button2_Click(object sender, EventArgs e)
         {
-            if (!Find_Data($"SELECT * from Accounts WHERE CustomerID = {clientNumber}"))
+            if (!FindData($"SELECT * from Accounts WHERE CustomerID = {clientNumber}"))
             {
                 return;
             }

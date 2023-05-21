@@ -1,46 +1,55 @@
 using System.Data.SqlClient;
 using System.Data;
 using Microsoft.VisualBasic;
+using System.Diagnostics;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+using System.Dynamic;
+using System.Diagnostics.Metrics;
+using System.Data.SqlTypes;
 
 namespace BankDemo
 {
     public partial class Form1 : Form
     {
-        SqlConnection connObj;
-
-        string fName;
-        string lName;
-        string streetNo;
-        string streetName;
-        string City;
-        string province;
-        string Postal;
-        string Country;
-        string phoneNo;
-        string email;
-        string DOB;
+        private readonly SqlConnection connObj;
+        //string fName;
+        //string lName;
+        //string streetNo;
+        //string streetName;
+        //string City;
+        //string province;
+        //string Postal;
+        //string Country;
+        //string phoneNo;
+        //string email;
+        //string DOB;
         int currentID;
+        //accounts
+        //employees
+        //manager
+        //
         public Form1()
         {
-            fName = "";
-            lName = "";
-            streetNo = "";
-            streetName = "";
-            City = "";
-            province = "";
-            Postal = "";
-            Country = "";
-            phoneNo = "";
-            email = "";
-            DOB = "";
+            //fName = "";
+            //lName = "";
+            //streetNo = "";
+            //streetName = "";
+            //City = "";
+            //province = "";
+            //Postal = "";
+            //Country = "";
+            //phoneNo = "";
+            //email = "";
+            //DOB = "";
             currentID = 0;
-            connObj = new SqlConnection(@"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=C:\repos\Teaching\C#\Winter2023\BankDemo\BankDemo\Bank.mdf;Integrated Security=True");
+
             InitializeComponent();
         }
-        private void Clear_Form()
+        private void ClearForm()
         {
-            currentID = 1;
+            currentID = 0;
             textBox1.Clear();
+            textBox2.Clear();
             textBox3.Clear();
             textBox4.Clear();
             dateTimePicker1.ResetText();
@@ -52,78 +61,116 @@ namespace BankDemo
             textBox11.Clear();
             textBox12.Clear();
             textBox13.Clear();
-
         }
-        private bool FillVariables()
+        private Customer? FillVariableFormData()
         {
-            if (textBox3.Text == "" || textBox4.Text == "" || textBox6.Text == "" || textBox7.Text == "" || textBox8.Text == "" || textBox9.Text == "" || textBox10.Text == "" || textBox11.Text == "" || textBox12.Text == "" || textBox13.Text == "")
+            if (IsAnyFieldEmpty())
             {
-                MessageBox.Show("Please Fill In All the Fields");
-                return true;
+                MessageBox.Show("Please fill in all the fields.");
+                return null;
             }
-            fName = textBox3.Text;
-            lName = textBox4.Text;
-            DOB = dateTimePicker1.Text;
-            streetNo = textBox6.Text;
-            streetName = textBox7.Text;
-            City = textBox8.Text;
-            province = textBox9.Text;
-            Postal = textBox10.Text;
-            Country = textBox11.Text;
-            phoneNo = textBox12.Text;
-            email = textBox13.Text;
-            currentID = Convert.ToInt32(textBox1.Text);
-            return false;
+
+            Customer customer = new Customer
+            {
+                CustomerID = Convert.ToInt32(textBox2.Text),
+                FirstName = textBox3.Text,
+                LastName = textBox4.Text,
+                DateOfBirth = dateTimePicker1.Value,
+                ContactDetail = new()
+                {
+                    Phone = textBox12.Text,
+                    Email = textBox13.Text
+                },
+                HomeAddress = new()
+                {
+                    StreetNumber = textBox6.Text,
+                    StreetName = textBox7.Text,
+                    City = textBox8.Text,
+                    Province = textBox9.Text,
+                    PostalCode = textBox10.Text,
+                    Country = textBox11.Text,
+                }
+            };
+
+            currentID = customer.CustomerID;
+            return customer;
         }
+
+        private bool IsAnyFieldEmpty()
+        {
+            return string.IsNullOrWhiteSpace(textBox3.Text) ||
+                   string.IsNullOrWhiteSpace(textBox4.Text) ||
+                   string.IsNullOrWhiteSpace(textBox6.Text) ||
+                   string.IsNullOrWhiteSpace(textBox7.Text) ||
+                   string.IsNullOrWhiteSpace(textBox8.Text) ||
+                   string.IsNullOrWhiteSpace(textBox9.Text) ||
+                   string.IsNullOrWhiteSpace(textBox10.Text) ||
+                   string.IsNullOrWhiteSpace(textBox11.Text) ||
+                   string.IsNullOrWhiteSpace(textBox12.Text) ||
+                   string.IsNullOrWhiteSpace(textBox13.Text);
+        }
+
         private void Form1_Load(object sender, EventArgs e)
         {
-            Clear_Form();
-            connObj = new SqlConnection(@"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=C:\repos\Teaching\C#\Winter2023\BankDemo\BankDemo\Bank.mdf;Integrated Security=True");
-            connObj.Open();
-            SqlCommand command = new SqlCommand("select * from Customers;", connObj);
-            SqlDataAdapter dataAdapter = new SqlDataAdapter(command);
-            DataTable dataTable = new DataTable();
-            dataAdapter.Fill(dataTable);
 
         }
-        private bool Find_Data(string sql = "SELECT * from Customers")
+        private bool FindData(int id = 0, string sqlQuery = "SELECT * FROM Customers")
         {
-            
-            SqlDataReader reader;
-            SqlCommand command = new SqlCommand(sql, connObj);
-            reader = command.ExecuteReader();
-            if (!reader.HasRows)
+            try
             {
-                reader.Close();
-                return false;
+                const string connectionString = @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=C:\repos\Teaching\C#\Winter2023\BankDemo\BankDemo\Bank.mdf;Integrated Security=True";
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    using (SqlCommand command = new SqlCommand(sqlQuery, connection))
+                    {
+                        if (id != 0)
+                        {
+                            sqlQuery = "SELECT * FROM Customers WHERE CustomerID = @CustomerID";
+                            command.Parameters.AddWithValue("@CustomerID", id);
+                            command.CommandText = sqlQuery;
+                        }
+                        using (SqlDataReader reader = command.ExecuteReader())
+                        {
+                            if (reader.HasRows)
+                            {
+                                while (reader.Read())
+                                {
+                                    UpdateTextBoxes(reader);
+                                }
+                                return true;
+                            }
+                        }
+                    }
+                }
             }
-            while (reader.Read())
+            catch (SqlException ex)
             {
-                currentID = Convert.ToInt32(reader.GetValue(0));
-                textBox1.Text = reader.GetValue(0).ToString();
-                textBox3.Text = reader.GetValue(2).ToString();
-                textBox4.Text = reader.GetValue(3).ToString();
-                dateTimePicker1.Text = reader.GetValue(4).ToString();
-                textBox6.Text = reader.GetValue(5).ToString();
-                textBox7.Text = reader.GetValue(6).ToString();
-                textBox8.Text = reader.GetValue(7).ToString();
-                textBox9.Text = reader.GetValue(8).ToString();
-                textBox10.Text = reader.GetValue(9).ToString();
-                textBox11.Text = reader.GetValue(10).ToString();
-                textBox12.Text = reader.GetValue(11).ToString();
-                textBox13.Text = reader.GetValue(12).ToString();
+                MessageBox.Show("Error Finding Customer Data" + ex);
             }
-            reader.Close();
-            return true;
+            return false;
         }
-
+        private void UpdateTextBoxes(SqlDataReader reader)
+        {
+            currentID = Convert.ToInt32(reader[0]);
+            textBox2.Text = reader[0].ToString();
+            textBox3.Text = reader[2].ToString();
+            textBox4.Text = reader[3].ToString();
+            dateTimePicker1.Value = (DateTime)reader[4];
+            textBox6.Text = reader[5].ToString();
+            textBox7.Text = reader[6].ToString();
+            textBox8.Text = reader[7].ToString();
+            textBox9.Text = reader[8].ToString();
+            textBox10.Text = reader[9].ToString();
+            textBox11.Text = reader[10].ToString();
+            textBox12.Text = reader[11].ToString();
+            textBox13.Text = reader[12].ToString();
+        }
         private void Read_Click(object sender, EventArgs e)
         {
             // show all customers
             Form2 AllCustomers = new Form2();
             AllCustomers.Show();
-
-
         }
         private void Insert_click(object sender, EventArgs e)
         {
@@ -138,21 +185,56 @@ namespace BankDemo
             //Let the user know it was successful
             //----------Optional--------//
             //add another form that connects to accounts so you can add a chequing account for the user
-            if (FillVariables())
+            try
             {
-                return;
+                Customer? customer = FillVariableFormData();
+                if (customer == null)
+                {
+                    return;
+                }
+                // add a search for super key
+                if (FindData(sqlQuery: $"SELECT * FROM Customers WHERE FirstName = '{customer.FirstName}' AND LastName = '{customer.LastName}' AND PhoneNo = '{customer.ContactDetail.Phone}' AND Email = '{customer.ContactDetail.Email}'"))
+                {
+                    MessageBox.Show("Customer Already Exisits");
+                    return;
+                }
+                using (SqlConnection connObj = new SqlConnection(@"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=C:\repos\Teaching\C#\Winter2023\BankDemo\BankDemo\Bank.mdf;Integrated Security=True"))
+                {
+                    connObj.Open();
+                    using SqlCommand command = new SqlCommand("INSERT INTO Customers (FirstName, LastName, DOB, StreetNo, StreetName, City, Province, PostalCode, Country, PhoneNo, Email) Values (@FirstName, @LastName, @DOB, @StreetNo, @StreetName, @City, @Province, @PostalCode, @Country, @PhoneNo, @Email)", connObj);
+
+                    command.Parameters.AddWithValue("@FirstName", customer.FirstName);
+                    command.Parameters.AddWithValue("@LastName", customer.LastName);
+                    command.Parameters.AddWithValue("@DOB", customer.DateOfBirth);
+                    command.Parameters.AddWithValue("@StreetNo", customer.HomeAddress.StreetNumber);
+                    command.Parameters.AddWithValue("@StreetName", customer.HomeAddress.StreetName);
+                    command.Parameters.AddWithValue("@City", customer.HomeAddress.City);
+                    command.Parameters.AddWithValue("@Province", customer.HomeAddress.Province);
+                    command.Parameters.AddWithValue("@PostalCode", customer.HomeAddress.PostalCode);
+                    command.Parameters.AddWithValue("@Country", customer.HomeAddress.Country);
+                    command.Parameters.AddWithValue("@PhoneNo", customer.ContactDetail.Phone);
+                    command.Parameters.AddWithValue("@Email", customer.ContactDetail.Email);
+
+
+                    //FindData($"SELECT * FROM Customers WHERE FirstName = '{fName}' AND LastName = '{lName}' AND PhoneNo = '{phoneNo}' AND Email = '{email}'");
+                    // Form3 Accounts = new Form3(textBox2.Text);
+                    //Accounts.Show();
+                    int recordsAffected = command.ExecuteNonQuery();
+                    if (recordsAffected == 1)
+                    {
+                        MessageBox.Show("Record added");
+                    }
+                    else
+                    {
+                        MessageBox.Show("Could Not Add Record");
+                    }
+                }
             }
-            // add a search for super key
-            if (Find_Data($"SELECT * FROM Customers WHERE FirstName = '{fName}' AND LastName = '{lName}' AND PhoneNo = '{phoneNo}' AND Email = '{email}'"))
-            {               
-                MessageBox.Show("Customer Already Exisits");
-                return;
+            catch (SqlException ex)
+            {
+
+                MessageBox.Show("Error Adding Customer data" + ex);
             }
-            SqlCommand command = new SqlCommand($"INSERT INTO Customers (BranchID, FirstName, LastName, DOB, StreetNo, StreetName, City, Province, PostalCode, Country, PhoneNo, Email) Values ('2', '{fName}','{lName}','{DOB}', '{streetNo}' ,'{streetName}','{City}','{province}','{Postal}','{Country}','{phoneNo}', '{email}');", connObj);
-            Find_Data($"SELECT * FROM Customers WHERE FirstName = '{fName}' AND LastName = '{lName}' AND PhoneNo = '{phoneNo}' AND Email = '{email}'");
-            Form3 Accounts = new Form3(textBox1.Text);
-            Accounts.Show();
-            command.ExecuteNonQuery();
         }
         private void Update_Click(object sender, EventArgs e)
         {
@@ -167,12 +249,47 @@ namespace BankDemo
             //Let the user know it was successful
             //----------Optional--------//
             //add another form that connects to accounts so you can add a chequing account for the user
-            if (FillVariables())
+            try
             {
-                return;
+
+
+
+                Customer? customer = FillVariableFormData();
+                if (customer == null)
+                {
+                    return;
+                }
+                using SqlConnection connObj = new SqlConnection(@"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=C:\repos\Teaching\C#\Winter2023\BankDemo\BankDemo\Bank.mdf;Integrated Security=True");
+                connObj.Open();
+                using SqlCommand cmd = new SqlCommand("UPDATE Customers SET FirstName = @FirstName, LastName = @LastName, BranchID = @BranchID, DOB = @DOB, StreetNo = @StreetNo, StreetName = @StreetName, City = @City, Province = @Province, PostalCode = @PostalCode, Country = @Country, PhoneNo = @PhoneNo, Email = @Email WHERE CustomerID = @CustomerID", connObj);
+                cmd.Parameters.AddWithValue("@FirstName", customer.FirstName);
+                cmd.Parameters.AddWithValue("@LastName", customer.LastName);
+                cmd.Parameters.AddWithValue("@BranchID", 2);
+                cmd.Parameters.AddWithValue("@DOB", customer.DateOfBirth);
+                cmd.Parameters.AddWithValue("@StreetNo", customer.HomeAddress.StreetNumber);
+                cmd.Parameters.AddWithValue("@StreetName", customer.HomeAddress.StreetName);
+                cmd.Parameters.AddWithValue("@City", customer.HomeAddress.City);
+                cmd.Parameters.AddWithValue("@Province", customer.HomeAddress.Province);
+                cmd.Parameters.AddWithValue("@PostalCode", customer.HomeAddress.PostalCode);
+                cmd.Parameters.AddWithValue("@Country", customer.HomeAddress.Country);
+                cmd.Parameters.AddWithValue("@PhoneNo", customer.ContactDetail.Phone);
+                cmd.Parameters.AddWithValue("@Email", customer.ContactDetail.Email);
+                cmd.Parameters.AddWithValue("@CustomerID", currentID);
+                int rowsAffected = cmd.ExecuteNonQuery();
+                if (rowsAffected > 0)
+                {
+                    MessageBox.Show("Successfully Updated Customer Data");
+                }
+                else
+                {
+                    MessageBox.Show("Could Not Update Customer Data");
+                }
             }
-            SqlCommand cmd = new SqlCommand($"UPDATE Customers SET FirstName = '{fName}', LastName = '{lName}', BranchID = '2', DOB = '{DOB}', StreetNo = '{streetNo}', StreetName = '{streetName}', City = '{City}', Province = '{province}', PostalCode = '{Postal}', Country = '{Country}', PhoneNo = '{phoneNo}', Email = '{email}' Where CustomerID = {currentID}", connObj);
-            cmd.ExecuteNonQuery();
+            catch (SqlException ex)
+            {
+
+                MessageBox.Show("Error Adding Customer Data" + ex);
+            }
             //find the record you want
             //if not found, return with message
             //ask what the user would like to update
@@ -181,7 +298,7 @@ namespace BankDemo
         private void Previous_Click(object sender, EventArgs e)
         {
             //search the Database for the first customer that who Has an ID less than the current customer if there is not ID less than the current, let the user know they are at the beginning of the file
-            if (!Find_Data($"SELECT TOP 1 * FROM Customers WHERE CustomerID < {currentID} ORDER BY CustomerID DESC"))
+            if (!FindData(sqlQuery: $"SELECT TOP 1 * FROM Customers WHERE CustomerID < {currentID} ORDER BY CustomerID DESC"))
             {
                 MessageBox.Show("Beginning of file");
             }
@@ -191,11 +308,10 @@ namespace BankDemo
 
         }
 
-
         private void Next_Click(object sender, EventArgs e)
         {
             //search the Database for the first customer that who Has an ID grester than the current customer if there is not ID greater than the current, let the user know they are at the end of the file
-            if (!Find_Data($"SELECT TOP 1 * FROM Customers WHERE CustomerID > {currentID} ORDER BY CustomerID ASC"))
+            if (!FindData(sqlQuery: $"SELECT TOP 1 * FROM Customers WHERE CustomerID > {currentID} ORDER BY CustomerID ASC"))
             {
                 MessageBox.Show("End of file");
             }
@@ -203,7 +319,6 @@ namespace BankDemo
             //Determin where you are in the file
             //move to the next record or row
             //if at end of file let the user kknow
-
         }
         private void Delete_Click(object sender, EventArgs e)
         {
@@ -219,11 +334,40 @@ namespace BankDemo
             {
                 return;
             }
-            if (Find_Data($"SELECT * FROM Customers WHERE CustomerID = {currentID};"))
+            if (FindData(currentID))
             {
-                Find_Data($"DELETE FROM Customers WHERE CustomerID = {currentID};");
-                MessageBox.Show("Delete Successful");
-                Clear_Form();
+                try
+                {
+                    const string connectionString = @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=C:\repos\Teaching\C#\Winter2023\BankDemo\BankDemo\Bank.mdf;Integrated Security=True";
+                    const string sqlQuery = $"DELETE FROM Customers WHERE CustomerID = @CustomerID;";
+                    using (SqlConnection connection = new SqlConnection(connectionString))
+                    {
+                        connection.Open();
+                        using (SqlCommand command = new SqlCommand(sqlQuery, connection))
+                        {
+                            command.Parameters.AddWithValue("@CustomerID", currentID);
+                            int rowsAffected = command.ExecuteNonQuery();
+                            if (rowsAffected > 0)
+                            {
+                                MessageBox.Show("Delete Successful");
+                                ClearForm();
+                            }
+                            else
+                            {
+                                MessageBox.Show("Could Not Delete Customer Data");
+                            }
+                        }
+                    }
+                }
+                catch (SqlException ex)
+                {
+                    MessageBox.Show("Error Finding Customer Data" + ex);
+                }
+
+            }
+            else
+            {
+                MessageBox.Show("Could Not Find Customer To Delete");
             }
             //find the record you want
             //if not found, return with message
@@ -231,11 +375,9 @@ namespace BankDemo
             //Delete Record
             //let them know it was successful 
         }
-
-
         private void Get_Accounts_Click(object sender, EventArgs e)
         {
-            Form3 Accounts = new Form3(textBox1.Text);
+            Form3 Accounts = new Form3(textBox2.Text);
             Accounts.Show();
         }
         private void Find_Click(object sender, EventArgs e)
@@ -246,16 +388,19 @@ namespace BankDemo
             //if not found let the user know
             if (textBox1.Text == "")
             {
-                
                 MessageBox.Show("Please Fill The Customer ID");
                 return;
             }
-            if (!Find_Data($"SELECT * FROM Customers WHERE CustomerID = {textBox1.Text}"))
+            if (!FindData(Convert.ToInt32(textBox1.Text)))
             {
                 MessageBox.Show("Cannot find data");
             }
             //Fill_Form(dt);
-
+        }
+        private void Clear_Form_Click(object sender, EventArgs e)
+        {
+            ClearForm();
         }
     }
 }
+
